@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@layer base {
+  @media print {
+    nav, 
+    button, 
+    .no-print,
+    #pricing,
+    footer {
+      display: none !important;
+    }
+
+    body {
+      background: white !important;
+      color: black !important;
+    }
+
+    .card-glass, 
+    .bg-slate-900, 
+    .bg-slate-950,
+    .bg-slate-900\/40 {
+      background: white !important;
+      border: 1px solid #e2e8f0 !important;
+      color: black !important;
+      box-shadow: none !important;
+    }
+
+    .text-slate-400, 
+    .text-slate-500, 
+    .text-slate-600 {
+      color: #4a5568 !important;
+    }
+
+    .text-white, 
+    .text-slate-100 {
+      color: black !important;
+    }
+
+    .prose-invert {
+      --tw-prose-body: black;
+      --tw-prose-headings: black;
+      --tw-prose-links: black;
+      --tw-prose-bold: black;
+      --tw-prose-counters: black;
+      --tw-prose-bullets: black;
+      --tw-prose-hr: black;
+      --tw-prose-quotes: black;
+      --tw-prose-quote-borders: black;
+      --tw-prose-captions: black;
+      --tw-prose-code: black;
+      --tw-prose-pre-code: black;
+      --tw-prose-pre-bg: white;
+      --tw-prose-th-borders: black;
+      --tw-prose-td-borders: black;
+    }
+
+    .bg-gradient-to-br,
+    .bg-gradient-to-r {
+      background: white !important;
+      border: 2px solid black !important;
+    }
+
+    .text-transparent {
+      color: black !important;
+      background: none !important;
+      -webkit-background-clip: initial !important;
+      background-clip: initial !important;
+    }
+  }
+}

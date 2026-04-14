@@ -49,6 +49,7 @@ import {
 import { analyzeVehicles, Vehicle, UserPersona } from './services/geminiService';
 import { useExchangeRates } from './hooks/useExchangeRates';
 import { cn, formatZAR, formatCurrency } from './lib/utils';
+import AboutPage from './components/AboutPage';
 
 interface UserProfile {
   uid: string;
@@ -70,6 +71,7 @@ export default function App() {
   const [showDeveloperModal, setShowDeveloperModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [view, setView] = useState<'dashboard' | 'about'>('dashboard');
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -315,15 +317,31 @@ export default function App() {
             <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
               <Car className="text-white w-6 h-6" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 
+              onClick={() => setView('dashboard')}
+              className="text-2xl font-bold tracking-tight cursor-pointer"
+            >
               ShiftSense <span className="text-blue-500">AI</span>
             </h1>
           </div>
 
             <div className="flex items-center gap-6">
               <button 
+                onClick={() => setView('about')}
+                className={cn(
+                  "text-xs font-bold transition-colors",
+                  view === 'about' ? "text-blue-500" : "text-slate-400 hover:text-blue-400"
+                )}
+              >
+                About
+              </button>
+
+              <button 
                 onClick={() => {
-                  document.getElementById('developer')?.scrollIntoView({ behavior: 'smooth' });
+                  setView('dashboard');
+                  setTimeout(() => {
+                    document.getElementById('developer')?.scrollIntoView({ behavior: 'smooth' });
+                  }, 100);
                 }}
                 className="hidden lg:block text-xs font-bold text-slate-400 hover:text-blue-400 transition-colors"
               >
@@ -392,83 +410,131 @@ export default function App() {
       </nav>
 
       <main className="max-w-6xl mx-auto p-6 pb-24">
-        {/* Persona Detection / Landing Page */}
-        {!persona && (
-          <div className="max-w-4xl mx-auto py-12">
-            {/* Brief Description Section */}
-            <section className="text-center mb-16">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7 }}
-              >
-                <h2 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">
-                  Buy Used With <span className="text-blue-500">Certainty.</span>
-                </h2>
-                <p className="text-lg md:text-xl text-slate-400 leading-relaxed mb-12 max-w-3xl mx-auto">
-                  ShiftSense AI is your intelligent vehicle companion built specifically for the South African market. 
-                  We analyze technical specs, scan owner forums for mechanical "lemons," and assess security risks 
-                  to ensure your next bakkie or car is a smart investment, not a costly mistake.
-                </p>
-                
-                {/* How it Works Mini-Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300 mb-16">
-                  <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/30 backdrop-blur-sm hover:border-blue-500/30 transition-colors">
-                    <Search className="text-blue-500 mb-3 w-6 h-6 mx-auto" />
-                    <p className="font-medium">Compare up to 3 vehicles side-by-side.</p>
-                  </div>
-                  <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/30 backdrop-blur-sm hover:border-blue-500/30 transition-colors">
-                    <Zap className="text-blue-500 mb-3 w-6 h-6 mx-auto" />
-                    <p className="font-medium">Detect hidden mechanical flaws and parts costs.</p>
-                  </div>
-                  <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/30 backdrop-blur-sm hover:border-blue-500/30 transition-colors">
-                    <ShieldCheck className="text-blue-500 mb-3 w-6 h-6 mx-auto" />
-                    <p className="font-medium">Assess hijack risk & SA insurance profiles.</p>
+        {view === 'about' ? (
+          <AboutPage onBack={() => setView('dashboard')} />
+        ) : (
+          <>
+            {/* Persona Detection / Landing Page */}
+            {!persona && (
+              <>
+                <div className="max-w-4xl mx-auto py-12">
+                  {/* Brief Description Section */}
+                  <section className="text-center mb-16">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.7 }}
+                    >
+                      <h2 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">
+                        Buy Used With <span className="text-blue-500">Certainty.</span>
+                      </h2>
+                      <p className="text-lg md:text-xl text-slate-400 leading-relaxed mb-12 max-w-3xl mx-auto">
+                        ShiftSense AI is your intelligent vehicle companion built specifically for the South African market. 
+                        We analyze technical specs, scan owner forums for mechanical "lemons," and assess security risks 
+                        to ensure your next bakkie or car is a smart investment, not a costly mistake.
+                      </p>
+                      
+                      {/* How it Works Mini-Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-slate-300 mb-16">
+                        <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/30 backdrop-blur-sm hover:border-blue-500/30 transition-colors">
+                          <Search className="text-blue-500 mb-3 w-6 h-6 mx-auto" />
+                          <p className="font-medium">Compare up to 3 vehicles side-by-side.</p>
+                        </div>
+                        <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/30 backdrop-blur-sm hover:border-blue-500/30 transition-colors">
+                          <Zap className="text-blue-500 mb-3 w-6 h-6 mx-auto" />
+                          <p className="font-medium">Detect hidden mechanical flaws and parts costs.</p>
+                        </div>
+                        <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/30 backdrop-blur-sm hover:border-blue-500/30 transition-colors">
+                          <ShieldCheck className="text-blue-500 mb-3 w-6 h-6 mx-auto" />
+                          <p className="font-medium">Assess hijack risk & SA insurance profiles.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row justify-center gap-6 mb-16">
+                        <button 
+                          onClick={() => setPersona('buyer')}
+                          className="group relative px-8 py-6 bg-slate-900 border border-slate-800 rounded-3xl hover:border-blue-500/50 transition-all shadow-xl hover:shadow-blue-500/10"
+                        >
+                          <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-blue-600/20 rounded-2xl group-hover:bg-blue-600 transition-colors">
+                              <User className="w-6 h-6 text-blue-500 group-hover:text-white" />
+                            </div>
+                            <div className="text-left">
+                              <h3 className="text-xl font-bold">I'm a Buyer</h3>
+                              <p className="text-xs text-slate-500">Finding a reliable car for myself</p>
+                            </div>
+                          </div>
+                        </button>
+
+                        <button 
+                          onClick={() => setPersona('trader')}
+                          className="group relative px-8 py-6 bg-slate-900 border border-slate-800 rounded-3xl hover:border-emerald-500/50 transition-all shadow-xl hover:shadow-emerald-500/10"
+                        >
+                          <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-emerald-600/20 rounded-2xl group-hover:bg-emerald-600 transition-colors">
+                              <Briefcase className="w-6 h-6 text-emerald-500 group-hover:text-white" />
+                            </div>
+                            <div className="text-left">
+                              <h3 className="text-xl font-bold">I'm a Trader</h3>
+                              <p className="text-xs text-slate-500">Analyzing for resale & profit</p>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    </motion.div>
+                  </section>
+
+                  <div className="mt-24 pt-12 border-t border-slate-900/50">
+                    <div className="flex flex-wrap justify-center gap-8 text-sm text-slate-500 mb-6">
+                      <button onClick={() => setView('about')} className="hover:text-blue-500 transition underline decoration-slate-800 underline-offset-4">About ShiftSense AI</button>
+                      <button onClick={() => setShowTerms(true)} className="hover:text-blue-500 transition underline decoration-slate-800 underline-offset-4">Terms of Service</button>
+                      <button onClick={() => setShowPrivacy(true)} className="hover:text-blue-500 transition underline decoration-slate-800 underline-offset-4">Privacy Policy</button>
+                    </div>
                   </div>
                 </div>
-              </motion.div>
-            </section>
 
-            {/* Persona Selection Box */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-slate-900/40 backdrop-blur-md p-8 md:p-12 rounded-[3rem] border border-slate-800 shadow-2xl text-center"
-            >
-              <h3 className="text-2xl md:text-3xl font-bold mb-2">Welcome to ShiftSense AI</h3>
-              <p className="text-slate-500 mb-10">Select your path to start your analysis</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Buyer */}
-                <button 
-                  onClick={() => setPersona('buyer')}
-                  className="group p-8 rounded-3xl border border-slate-700 hover:border-blue-500 bg-slate-950/50 transition-all text-left flex flex-col gap-4"
+                {/* Persona Selection Box */}
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-slate-900/40 backdrop-blur-md p-8 md:p-12 rounded-[3rem] border border-slate-800 shadow-2xl text-center"
                 >
-                  <div className="bg-blue-600/20 w-14 h-14 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 transition-colors">
-                    <User className="text-blue-500 group-hover:text-white w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-bold mb-1 group-hover:text-blue-400 transition-colors">The Buyer</h4>
-                    <p className="text-sm text-slate-500 font-medium leading-relaxed">Personal use, family safety, and long-term reliability.</p>
-                  </div>
-                </button>
+                  <h3 className="text-2xl md:text-3xl font-bold mb-2">Welcome to ShiftSense AI</h3>
+                  <p className="text-slate-500 mb-10">Select your path to start your analysis</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Buyer */}
+                    <button 
+                      onClick={() => setPersona('buyer')}
+                      className="group p-8 rounded-3xl border border-slate-700 hover:border-blue-500 bg-slate-950/50 transition-all text-left flex flex-col gap-4"
+                    >
+                      <div className="bg-blue-600/20 w-14 h-14 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 transition-colors">
+                        <User className="text-blue-500 group-hover:text-white w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold mb-1 group-hover:text-blue-400 transition-colors">The Buyer</h4>
+                        <p className="text-sm text-slate-500 font-medium leading-relaxed">Personal use, family safety, and long-term reliability.</p>
+                      </div>
+                    </button>
 
-                {/* Trader */}
-                <button 
-                  onClick={() => setPersona('trader')}
-                  className="group p-8 rounded-3xl border border-slate-700 hover:border-emerald-500 bg-slate-950/50 transition-all text-left flex flex-col gap-4"
-                >
-                  <div className="bg-emerald-600/20 w-14 h-14 rounded-2xl flex items-center justify-center group-hover:bg-emerald-600 transition-colors">
-                    <Briefcase className="text-emerald-500 group-hover:text-white w-6 h-6" />
+                    {/* Trader */}
+                    <button 
+                      onClick={() => setPersona('trader')}
+                      className="group p-8 rounded-3xl border border-slate-700 hover:border-emerald-500 bg-slate-950/50 transition-all text-left flex flex-col gap-4"
+                    >
+                      <div className="bg-emerald-600/20 w-14 h-14 rounded-2xl flex items-center justify-center group-hover:bg-emerald-600 transition-colors">
+                        <Briefcase className="text-emerald-500 group-hover:text-white w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold mb-1 group-hover:text-emerald-400 transition-colors">The Trader</h4>
+                        <p className="text-sm text-slate-500 font-medium leading-relaxed">Resale margins, trade opportunities, and parts sourcing.</p>
+                      </div>
+                    </button>
                   </div>
-                  <div>
-                    <h4 className="text-xl font-bold mb-1 group-hover:text-emerald-400 transition-colors">The Trader</h4>
-                    <p className="text-sm text-slate-500 font-medium leading-relaxed">Resale margins, trade opportunities, and parts sourcing.</p>
-                  </div>
-                </button>
-              </div>
-            </motion.div>
-          </div>
+                </motion.div>
+              </>
+            )}
+          </>
         )}
 
         {persona && (
@@ -1100,7 +1166,8 @@ export default function App() {
         )}
 
         {/* About the Developer Section */}
-        <section id="developer" className="py-24 px-6 bg-slate-950/50 border-t border-slate-900">
+        {view === 'dashboard' && (
+          <section id="developer" className="py-24 px-6 bg-slate-950/50 border-t border-slate-900">
           <div className="max-w-4xl mx-auto">
             <div className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-[3rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
@@ -1143,11 +1210,13 @@ export default function App() {
             </div>
           </div>
         </section>
+        )}
       </main>
 
       <footer className="bg-slate-950 border-t border-slate-900 py-16 px-6 text-center">
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-center flex-wrap gap-8 text-sm text-slate-500 mb-6">
+            <button onClick={() => setView('about')} className="hover:text-blue-500 transition underline decoration-slate-800 underline-offset-4">About ShiftSense AI</button>
             <button onClick={() => setShowTerms(true)} className="hover:text-blue-500 transition underline decoration-slate-800 underline-offset-4">Terms of Service</button>
             <button onClick={() => setShowPrivacy(true)} className="hover:text-blue-500 transition underline decoration-slate-800 underline-offset-4">Privacy Policy</button>
             <button 

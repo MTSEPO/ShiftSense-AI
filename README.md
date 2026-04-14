@@ -1,20 +1,51 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# ShiftSense AI 🚗🇿🇦
 
-# Run and deploy your AI Studio app
+**ShiftSense AI** is a specialized South African automotive consultant and mechanical analyst designed to help users buy and sell used vehicles with confidence. It leverages AI to analyze technical specifications, scan for common mechanical "lemons," and assess security risks specific to the South African market.
 
-This contains everything you need to run your app locally.
+## 🌟 Key Features
 
-View your app in AI Studio: https://ai.studio/apps/1d9f6f7b-2ab9-4ffd-ad48-d50516ea6c68
+- **AI-Powered Analysis**: Get a comprehensive "ShiftSense Verdict" on any vehicle based on make, model, year, price, and mileage.
+- **SA Market Focus**: Tailored insights for South Africa, including security risk assessments (SAPS advice) and market-specific reliability data.
+- **SWOT Analysis**: Visual breakdown of Strengths, Weaknesses, Opportunities, and Threats for every vehicle.
+- **Vehicle Comparison**: Compare up to 3 vehicles side-by-side to find the best value.
+- **PDF Export**: Pro members can export detailed analysis reports to high-quality PDFs.
+- **Persona-Based Insights**: Specialized advice for both **Buyers** (looking for reliability/value) and **Traders** (looking for flip potential/margins).
+- **Real-time Exchange Rates**: Automatic conversion between ZAR, USD, and GBP.
 
-## Run Locally
+## 🛠️ Tech Stack
 
-**Prerequisites:**  Node.js
+- **Frontend**: React 18, Vite, TypeScript
+- **Styling**: Tailwind CSS, Lucide Icons, Framer Motion
+- **Backend/Database**: Firebase (Firestore, Authentication)
+- **AI Engine**: Google Gemini AI (via specialized automotive prompts)
+- **Utilities**: html2canvas & jsPDF (for report generation)
 
+## 🚀 Getting Started
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Prerequisites
+
+- Node.js (v18 or higher)
+- npm or yarn
+
+### Installation
+
+1. Clone the repository.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up your environment variables in a `.env` file (see `.env.example`).
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## 🔐 Admin Access
+
+The application includes a developer dashboard for administrative tasks.
+- **Username**: `MTSEPO`
+- **Password**: `Mothibedi@74`
+
+## 📄 License
+
+This project is built for the ShiftSense AI MVP. All rights reserved.

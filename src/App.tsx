@@ -21,7 +21,8 @@ import {
   Trophy,
   Quote,
   Download,
-  Lock
+  Lock,
+  Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -61,20 +62,33 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [report, setReport] = useState<string | null>(null);
+  const [report, setReport] = useState<{ report: string, swot: any[] } | null>(null);
   const [currency, setCurrency] = useState<'ZAR' | 'USD' | 'GBP'>('ZAR');
   const [persona, setPersona] = useState<UserPersona | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showDeveloperModal, setShowDeveloperModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [profilePic, setProfilePic] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const { convertFromZAR, rates } = useExchangeRates();
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([
-    { make: '', model: '', year: '', price: '' }
+    { make: '', model: '', year: '', price: '', odometer: '' }
   ]);
   const [context, setContext] = useState('');
+
+  useEffect(() => {
+    if ((report || analyzing) && resultsRef.current) {
+      resultsRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [report, analyzing]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -117,7 +131,48 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => signOut(auth);
+  const handleLogout = () => {
+    signOut(auth);
+    setIsAdminLoggedIn(false);
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminUsername === 'MTSEPO' && adminPassword === 'Mothibedi@74') {
+      setIsAdminLoggedIn(true);
+      setShowLoginModal(false);
+      // Create a mock user for admin
+      setUser({
+        uid: 'admin-mtsepo',
+        email: 'admin@shiftsense.ai',
+        displayName: 'MTSEPO (Admin)',
+        photoURL: profilePic || null,
+      } as any);
+      setProfile(prev => ({
+        ...prev,
+        uid: 'admin-mtsepo',
+        email: 'admin@shiftsense.ai',
+        isPro: true,
+        requestCount: 0,
+      } as any));
+    } else {
+      alert("Invalid credentials");
+    }
+  };
+
+  const handleProfilePicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePic(reader.result as string);
+        if (isAdminLoggedIn && user) {
+          setUser({ ...user, photoURL: reader.result as string } as any);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const downloadPDF = async () => {
     if (!profile?.isPro) {
@@ -154,7 +209,7 @@ export default function App() {
 
   const addVehicle = () => {
     if (vehicles.length < 3) {
-      setVehicles([...vehicles, { make: '', model: '', year: '', price: '' }]);
+      setVehicles([...vehicles, { make: '', model: '', year: '', price: '', odometer: '' }]);
     }
   };
 
@@ -200,27 +255,44 @@ export default function App() {
       setReport(result);
 
       // Update request count
-      const userDoc = doc(db, 'users', user.uid);
-      await updateDoc(userDoc, {
-        requestCount: increment(1)
-      });
+      try {
+        const userDoc = doc(db, 'users', user.uid);
+        await updateDoc(userDoc, {
+          requestCount: increment(1)
+        });
+      } catch (err: any) {
+        console.error("Failed to update request count:", err);
+        if (err.code === 'permission-denied') {
+          console.warn("Permission denied while updating request count. Check firestore.rules.");
+        }
+      }
       
       // Save analysis
-      await addDoc(collection(db, 'analyses'), {
-        userId: user.uid,
-        vehicles,
-        context,
-        report: result,
-        persona,
-        currency,
-        createdAt: serverTimestamp()
-      });
+      try {
+        await addDoc(collection(db, 'analyses'), {
+          userId: user.uid,
+          vehicles,
+          context,
+          report: result,
+          persona,
+          currency,
+          createdAt: serverTimestamp()
+        });
+      } catch (err: any) {
+        console.error("Failed to save analysis:", err);
+        if (err.code === 'permission-denied') {
+          console.warn("Permission denied while saving analysis. Check firestore.rules.");
+        }
+      }
 
       // Refresh profile
       await fetchProfile(user.uid, user.email || '');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Analysis failed:", error);
-      alert("Something went wrong during analysis. Please try again.");
+      const errorMessage = error.code === 'permission-denied' 
+        ? "Analysis failed: Missing or insufficient permissions. Please contact support."
+        : "Something went wrong during analysis. Please try again.";
+      alert(errorMessage);
     } finally {
       setAnalyzing(false);
     }
@@ -248,8 +320,17 @@ export default function App() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center bg-slate-900 rounded-full px-4 py-1.5 border border-slate-800">
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => {
+                  document.getElementById('developer')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="hidden lg:block text-xs font-bold text-slate-400 hover:text-blue-400 transition-colors"
+              >
+                Hire Tsepo
+              </button>
+              
+              <div className="hidden md:flex items-center bg-slate-900 rounded-full px-4 py-1.5 border border-slate-800">
               <Globe className="w-3.5 h-3.5 text-slate-500 mr-2" />
               <select 
                 value={currency}
@@ -268,6 +349,28 @@ export default function App() {
                   <p className="text-xs font-medium text-slate-200">{user.displayName}</p>
                   <p className="text-[10px] text-slate-500">{profile?.isPro ? 'Pro Member' : `${5 - (profile?.requestCount || 0)} free searches left`}</p>
                 </div>
+                
+                {isAdminLoggedIn && (
+                  <button className="p-2 text-blue-400 hover:text-blue-300 transition-colors" title="Developer Dashboard">
+                    <Settings className="w-5 h-5 animate-spin-slow" />
+                  </button>
+                )}
+
+                <div className="relative group">
+                  <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-slate-700 overflow-hidden flex items-center justify-center">
+                    {user.photoURL || profilePic ? (
+                      <img src={user.photoURL || profilePic || ''} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <User className="w-5 h-5 text-slate-500" />
+                    )}
+                  </div>
+                  {isAdminLoggedIn && (
+                    <label className="absolute inset-0 cursor-pointer opacity-0 group-hover:opacity-100 bg-black/50 flex items-center justify-center rounded-full transition-opacity">
+                      <Plus className="w-4 h-4 text-white" />
+                      <input type="file" className="hidden" accept="image/*" onChange={handleProfilePicUpload} />
+                    </label>
+                  )}
+                </div>
                 <button 
                   onClick={handleLogout}
                   className="p-2 text-slate-400 hover:text-white transition-colors"
@@ -277,7 +380,7 @@ export default function App() {
               </div>
             ) : (
               <button 
-                onClick={handleLogin}
+                onClick={() => setShowLoginModal(true)}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
               >
                 <LogIn className="w-4 h-4" />
@@ -386,90 +489,111 @@ export default function App() {
               </motion.div>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Form Section */}
-              <div className="lg:col-span-2">
-                <div className="bg-slate-900/40 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-700 shadow-2xl">
-                  
-                  {/* Persona Toggle */}
-                  <div className="flex bg-slate-950/50 p-1 rounded-2xl mb-8 border border-slate-800">
-                    <button 
-                      onClick={() => setPersona('buyer')} 
-                      className={cn(
-                        "flex-1 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2",
-                        persona === 'buyer' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"
-                      )}
-                    >
-                      <User className="w-4 h-4" /> The Buyer
-                    </button>
-                    <button 
-                      onClick={() => setPersona('trader')} 
-                      className={cn(
-                        "flex-1 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2",
-                        persona === 'trader' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"
-                      )}
-                    >
-                      <Briefcase className="w-4 h-4" /> The Trader
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleAnalyze} className="space-y-6">
-                    <div className="space-y-4">
-                      {vehicles.map((vehicle, index) => (
-                        <motion.div 
-                          key={index}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800 group hover:border-blue-500/30 transition-all"
-                        >
-                          <div className="flex items-center justify-between mb-4">
-                            <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold">Vehicle #{index + 1}</p>
-                            {index > 0 && (
-                              <button 
-                                type="button"
-                                onClick={() => removeVehicle(index)}
-                                className="p-1 text-slate-500 hover:text-red-400 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <input 
-                              required
-                              type="text" 
-                              placeholder="Make (e.g. BMW)" 
-                              value={vehicle.make}
-                              onChange={(e) => updateVehicle(index, 'make', e.target.value)}
-                              className="bg-slate-950 border border-slate-700 p-2.5 rounded-xl outline-none focus:border-blue-500 transition text-sm"
-                            />
-                            <input 
-                              required
-                              type="text" 
-                              placeholder="Model (e.g. 320i)" 
-                              value={vehicle.model}
-                              onChange={(e) => updateVehicle(index, 'model', e.target.value)}
-                              className="bg-slate-950 border border-slate-700 p-2.5 rounded-xl outline-none focus:border-blue-500 transition text-sm"
-                            />
-                            <input 
-                              required
-                              type="number" 
-                              placeholder="Year" 
-                              value={vehicle.year}
-                              onChange={(e) => updateVehicle(index, 'year', e.target.value)}
-                              className="bg-slate-950 border border-slate-700 p-2.5 rounded-xl outline-none focus:border-blue-500 transition text-sm"
-                            />
-                            <input 
-                              type="text" 
-                              placeholder="Price (ZAR)" 
-                              value={vehicle.price}
-                              onChange={(e) => updateVehicle(index, 'price', e.target.value)}
-                              className="bg-slate-950 border border-slate-700 p-2.5 rounded-xl outline-none focus:border-blue-500 transition text-sm"
-                            />
-                          </div>
-                        </motion.div>
-                      ))}
+            {!user ? (
+              <div className="max-w-2xl mx-auto text-center py-20 bg-slate-900/40 border border-slate-800 rounded-[3rem] backdrop-blur-md">
+                <Lock className="w-16 h-16 text-blue-500 mx-auto mb-6" />
+                <h3 className="text-3xl font-bold mb-4">Login to Use ShiftSense AI</h3>
+                <p className="text-slate-400 mb-8">Please sign in to access our advanced vehicle analysis tools and security reports.</p>
+                <button 
+                  onClick={() => setShowLoginModal(true)}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-4 rounded-2xl font-bold transition-all shadow-xl shadow-blue-900/20"
+                >
+                  Sign In Now
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Form Section */}
+                <div className="lg:col-span-2">
+                  <div className="bg-slate-900/40 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-700 shadow-2xl">
+                    
+                    {/* Persona Toggle */}
+                    <div className="flex bg-slate-950/50 p-1 rounded-2xl mb-8 border border-slate-800">
+                      <button 
+                        onClick={() => setPersona('buyer')} 
+                        className={cn(
+                          "flex-1 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2",
+                          persona === 'buyer' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"
+                        )}
+                      >
+                        <User className="w-4 h-4" /> The Buyer
+                      </button>
+                      <button 
+                        onClick={() => setPersona('trader')} 
+                        className={cn(
+                          "flex-1 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2",
+                          persona === 'trader' ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"
+                        )}
+                      >
+                        <Briefcase className="w-4 h-4" /> The Trader
+                      </button>
                     </div>
+
+                    <form onSubmit={handleAnalyze} className="space-y-6">
+                      <div className="space-y-4">
+                        {vehicles.map((vehicle, index) => (
+                          <motion.div 
+                            key={index}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800 group hover:border-blue-500/30 transition-all"
+                          >
+                            <div className="flex items-center justify-between mb-4">
+                              <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold">Vehicle #{index + 1}</p>
+                              {index > 0 && (
+                                <button 
+                                  type="button"
+                                  onClick={() => removeVehicle(index)}
+                                  className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                              <input 
+                                required
+                                type="text" 
+                                placeholder="Make (e.g. BMW)" 
+                                value={vehicle.make}
+                                onChange={(e) => updateVehicle(index, 'make', e.target.value)}
+                                className="bg-slate-950 border border-slate-700 p-2.5 rounded-xl outline-none focus:border-blue-500 transition text-sm"
+                              />
+                              <input 
+                                required
+                                type="text" 
+                                placeholder="Model (e.g. 320i)" 
+                                value={vehicle.model}
+                                onChange={(e) => updateVehicle(index, 'model', e.target.value)}
+                                className="bg-slate-950 border border-slate-700 p-2.5 rounded-xl outline-none focus:border-blue-500 transition text-sm"
+                              />
+                              <input 
+                                required
+                                type="number" 
+                                placeholder="Year" 
+                                value={vehicle.year}
+                                onChange={(e) => updateVehicle(index, 'year', e.target.value)}
+                                className="bg-slate-950 border border-slate-700 p-2.5 rounded-xl outline-none focus:border-blue-500 transition text-sm"
+                              />
+                              <input 
+                                required
+                                type="number" 
+                                placeholder="Odometer (KM)" 
+                                value={vehicle.odometer}
+                                onChange={(e) => updateVehicle(index, 'odometer', e.target.value)}
+                                className="bg-slate-950 border border-slate-700 p-2.5 rounded-xl outline-none focus:border-blue-500 transition text-sm"
+                              />
+                              <input 
+                                type="text" 
+                                placeholder="Price (ZAR)" 
+                                value={vehicle.price}
+                                onChange={(e) => updateVehicle(index, 'price', e.target.value)}
+                                className="bg-slate-950 border border-slate-700 p-2.5 rounded-xl outline-none focus:border-blue-500 transition text-sm"
+                              />
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
 
                     {/* Additional Info / Chat Style */}
                     <div className="space-y-2">
@@ -678,21 +802,28 @@ export default function App() {
                 </div>
               </div>
             </div>
+          )}
 
             {/* Results */}
-            <AnimatePresence>
-              {analyzing && (
-                <motion.section 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="mt-24 space-y-12"
-                >
-                  <div className="flex items-center justify-between mb-12">
-                    <div className="h-8 w-64 bg-slate-900 rounded-lg animate-pulse" />
+            <div ref={resultsRef} className="scroll-mt-24">
+              <AnimatePresence>
+                {analyzing && (
+                  <motion.section 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-6 space-y-8 overflow-hidden"
+                  >
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-6" />
+                      <p className="text-lg font-bold text-blue-400 animate-pulse">
+                        ShiftSense AI is scanning South African market data and security risks...
+                      </p>
+                    </div>
                   </div>
                   
-                  <div className="space-y-8">
+                  <div className="space-y-8 opacity-50">
                     {/* Verdict Skeleton */}
                     <div className="h-48 bg-slate-900 rounded-3xl animate-pulse" />
                     
@@ -714,9 +845,9 @@ export default function App() {
 
               {report && !analyzing && (
                 <motion.section 
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-24 border-t border-slate-800 pt-16"
+                  initial={{ opacity: 0, y: 40, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  className="mt-6 border-t border-slate-800 pt-12 overflow-hidden"
                 >
                   <div className="flex items-center justify-between mb-12">
                     <h2 className="text-3xl font-bold tracking-tight">ShiftSense Analysis Report</h2>
@@ -750,6 +881,70 @@ export default function App() {
                   </div>
                   
                   <div ref={reportRef} className="prose prose-invert prose-blue max-w-none space-y-12 p-8 bg-slate-950 rounded-[2.5rem]">
+                    {/* Structured SWOT Grid */}
+                    {report.swot && report.swot.length > 0 && (
+                      <div className="space-y-12 mb-16">
+                        {report.swot.map((item, idx) => (
+                          <div key={idx} className="space-y-6">
+                            <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                              <ShieldCheck className="w-6 h-6 text-blue-500" />
+                              SWOT Analysis: {item.vehicle}
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="bg-emerald-950/20 border border-emerald-500/20 p-6 rounded-2xl">
+                                <h5 className="text-emerald-400 font-bold mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                                  <CheckCircle2 className="w-3 h-3" /> Strengths
+                                </h5>
+                                <ul className="space-y-2">
+                                  {item.strengths.map((s: string, i: number) => (
+                                    <li key={i} className="text-sm text-slate-300 flex gap-2">
+                                      <span className="text-emerald-500">•</span> {s}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="bg-red-950/20 border border-red-500/20 p-6 rounded-2xl">
+                                <h5 className="text-red-400 font-bold mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                                  <AlertTriangle className="w-3 h-3" /> Weaknesses
+                                </h5>
+                                <ul className="space-y-2">
+                                  {item.weaknesses.map((w: string, i: number) => (
+                                    <li key={i} className="text-sm text-slate-300 flex gap-2">
+                                      <span className="text-red-500">•</span> {w}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="bg-blue-950/20 border border-blue-500/20 p-6 rounded-2xl">
+                                <h5 className="text-blue-400 font-bold mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                                  <Zap className="w-3 h-3" /> Opportunities
+                                </h5>
+                                <ul className="space-y-2">
+                                  {item.opportunities.map((o: string, i: number) => (
+                                    <li key={i} className="text-sm text-slate-300 flex gap-2">
+                                      <span className="text-blue-500">•</span> {o}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="bg-orange-950/20 border border-orange-500/20 p-6 rounded-2xl">
+                                <h5 className="text-orange-400 font-bold mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                                  <ShieldAlert className="w-3 h-3" /> Threats
+                                </h5>
+                                <ul className="space-y-2">
+                                  {item.threats.map((t: string, i: number) => (
+                                    <li key={i} className="text-sm text-slate-300 flex gap-2">
+                                      <span className="text-orange-500">•</span> {t}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <Markdown components={{
                       h1: ({node, ...props}) => (
                         <div className="mb-12">
@@ -821,6 +1016,23 @@ export default function App() {
                         // Security Risk Meter
                         if (content.includes('[RISK:')) {
                           const risk = content.match(/\[RISK: (.*?)\]/)?.[1] || 'MODERATE';
+                          
+                          if (!profile?.isPro) {
+                            return (
+                              <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-3xl text-center my-8">
+                                <Lock className="w-8 h-8 text-slate-600 mx-auto mb-4" />
+                                <h4 className="text-lg font-bold mb-2">Security Risk Analysis Locked</h4>
+                                <p className="text-sm text-slate-500 mb-6">Upgrade to Pro to see the full RSA-specific security risk meter and theft desirability scale.</p>
+                                <button 
+                                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all"
+                                >
+                                  Upgrade Now
+                                </button>
+                              </div>
+                            );
+                          }
+
                           const color = risk === 'EXTREME' || risk === 'HIGH' ? 'text-red-500' : risk === 'MODERATE' ? 'text-orange-500' : 'text-emerald-500';
                           const bgColor = risk === 'EXTREME' || risk === 'HIGH' ? 'bg-red-600' : risk === 'MODERATE' ? 'bg-orange-500' : 'bg-emerald-500';
                           const width = risk === 'EXTREME' ? '92%' : risk === 'HIGH' ? '75%' : risk === 'MODERATE' ? '50%' : '25%';
@@ -869,42 +1081,6 @@ export default function App() {
                         return <ul className="list-none space-y-3 my-4" {...props} />;
                       },
                       li: ({node, ...props}) => {
-                        const text = String(props.children?.[0]?.props?.children || props.children || '');
-                        
-                        // SWOT Items
-                        if (text.includes('Strengths')) {
-                          return (
-                            <div className="bg-emerald-950/20 border border-emerald-500/20 p-6 rounded-2xl">
-                              <h5 className="text-emerald-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Strengths</h5>
-                              <p className="text-sm text-slate-300 m-0">{text.replace('**Strengths**: ', '').replace('Strengths: ', '')}</p>
-                            </div>
-                          );
-                        }
-                        if (text.includes('Weaknesses')) {
-                          return (
-                            <div className="bg-red-950/20 border border-red-500/20 p-6 rounded-2xl">
-                              <h5 className="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Weaknesses</h5>
-                              <p className="text-sm text-slate-300 m-0">{text.replace('**Weaknesses**: ', '').replace('Weaknesses: ', '')}</p>
-                            </div>
-                          );
-                        }
-                        if (text.includes('Opportunities')) {
-                          return (
-                            <div className="bg-blue-950/20 border border-blue-500/20 p-6 rounded-2xl">
-                              <h5 className="text-blue-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Opportunities</h5>
-                              <p className="text-sm text-slate-300 m-0">{text.replace('**Opportunities**: ', '').replace('Opportunities: ', '')}</p>
-                            </div>
-                          );
-                        }
-                        if (text.includes('Threats')) {
-                          return (
-                            <div className="bg-orange-950/20 border border-orange-500/20 p-6 rounded-2xl">
-                              <h5 className="text-orange-400 font-bold mb-2 uppercase text-[10px] tracking-widest">Threats</h5>
-                              <p className="text-sm text-slate-300 m-0">{text.replace('**Threats**: ', '').replace('Threats: ', '')}</p>
-                            </div>
-                          );
-                        }
-
                         return (
                           <li className="flex gap-3 items-start text-slate-400 text-sm">
                             <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
@@ -913,21 +1089,81 @@ export default function App() {
                         );
                       },
                     }}>
-                      {report}
+                      {report.report}
                     </Markdown>
                   </div>
                 </motion.section>
               )}
             </AnimatePresence>
+          </div>
           </>
         )}
+
+        {/* About the Developer Section */}
+        <section id="developer" className="py-24 px-6 bg-slate-950/50 border-t border-slate-900">
+          <div className="max-w-4xl mx-auto">
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-[3rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative bg-slate-900 border border-slate-800 rounded-[3rem] p-8 md:p-12 text-center">
+                <div className="inline-block px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-widest mb-4">
+                  Lead Developer
+                </div>
+                <h2 className="text-3xl font-bold mb-4">Tsepo Motsatse</h2>
+                <p className="text-slate-400 mb-8 leading-relaxed max-w-2xl mx-auto">
+                  Tsepo Motsatse is a specialist solopreneur assisting companies in utilizing and integrating AI solutions to boost productivity and automate procedures.
+                  <br /><br />
+                  Elevate your digital infrastructure: I build scalable, secure, high-performance SaaS applications for founders and corporate entities. Let’s transform your vision into a robust, market-ready platform.
+                </p>
+                <div className="flex flex-wrap justify-center gap-4">
+                  <a 
+                    href="mailto:tsepomotsatse@gmail.com" 
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-blue-900/20"
+                  >
+                    <MessageSquare className="w-4 h-4" /> Email Me
+                  </a>
+                  <a 
+                    href="https://wa.me/27679489264" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20"
+                  >
+                    <Zap className="w-4 h-4" /> WhatsApp
+                  </a>
+                </div>
+                  
+                <div className="mt-8 pt-8 border-t border-slate-800/50">
+                  <a 
+                    href="mailto:tsepomotsatse@gmail.com"
+                    className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-emerald-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 transition-transform shadow-2xl shadow-blue-500/20"
+                  >
+                    Hire Tsepo Motsatse <MessageSquare className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer className="bg-slate-950 border-t border-slate-900 py-16 px-6 text-center">
         <div className="max-w-6xl mx-auto">
-          <div className="flex justify-center gap-8 text-sm text-slate-500 mb-6">
+          <div className="flex justify-center flex-wrap gap-8 text-sm text-slate-500 mb-6">
             <button onClick={() => setShowTerms(true)} className="hover:text-blue-500 transition underline decoration-slate-800 underline-offset-4">Terms of Service</button>
             <button onClick={() => setShowPrivacy(true)} className="hover:text-blue-500 transition underline decoration-slate-800 underline-offset-4">Privacy Policy</button>
+            <button 
+              onClick={() => {
+                document.getElementById('developer')?.scrollIntoView({ behavior: 'smooth' });
+              }} 
+              className="hover:text-emerald-500 transition underline decoration-slate-800 underline-offset-4 font-medium"
+            >
+              Hire the Developer
+            </button>
+            <button 
+              onClick={() => setShowLoginModal(true)} 
+              className="text-[10px] text-slate-700 hover:text-slate-500 transition uppercase tracking-tighter"
+            >
+              Admin Access
+            </button>
           </div>
           <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-8 border-t border-slate-900/50">
             <div className="flex items-center gap-2 opacity-50">
@@ -1025,9 +1261,61 @@ export default function App() {
               <button onClick={() => setShowPrivacy(false)} className="absolute top-6 right-6 text-slate-400 hover:text-white text-2xl">&times;</button>
               <h2 className="text-2xl font-bold mb-6 text-emerald-400">Privacy Policy (POPIA)</h2>
               <div className="space-y-6 text-sm text-slate-300 leading-relaxed">
-                <p><strong>1. Data Collection:</strong> We adhere to the Protection of Personal Information Act. We only collect data necessary for subscription management via PayPal.</p>
-                <p><strong>2. Usage:</strong> Your vehicle search history is confidential and is not shared with insurance or marketing agencies.</p>
-                <p><strong>3. Safety:</strong> All transaction data is handled by PayPal/Payhip. We do not store credit card details.</p>
+                <p><strong>1. Data Collection:</strong> We adhere to the Protection of Personal Information Act. We only collect data necessary for subscription management via PayFast.</p>
+                <p><strong>2. Payment Processing:</strong> ShiftSense AI utilizes PayFast for all ZAR transactions. Your financial data is handled securely via PayFast's encrypted gateway; we do not store your banking or card details on our servers.</p>
+                <p><strong>3. Usage:</strong> Your vehicle search history is confidential and is not shared with insurance or marketing agencies.</p>
+                <p><strong>4. Safety:</strong> All transaction data is handled by PayFast. We do not store credit card details.</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showLoginModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-slate-900 border border-slate-800 max-w-md w-full p-8 rounded-[2.5rem] relative shadow-2xl"
+            >
+              <button onClick={() => setShowLoginModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-white text-2xl">&times;</button>
+              <h2 className="text-2xl font-bold mb-6 text-center">Sign In</h2>
+              
+              <div className="space-y-6">
+                <button 
+                  onClick={handleLogin}
+                  className="w-full flex items-center justify-center gap-3 bg-white text-slate-900 py-4 rounded-2xl font-bold hover:bg-slate-100 transition-all"
+                >
+                  <Globe className="w-5 h-5" /> Continue with Google
+                </button>
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800"></div></div>
+                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-slate-900 px-2 text-slate-500">Or Admin Login</span></div>
+                </div>
+
+                <form onSubmit={handleAdminLogin} className="space-y-4">
+                  <input 
+                    type="text" 
+                    placeholder="Username" 
+                    value={adminUsername}
+                    onChange={(e) => setAdminUsername(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl outline-none focus:border-blue-500 transition"
+                  />
+                  <input 
+                    type="password" 
+                    placeholder="Password" 
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl outline-none focus:border-blue-500 transition"
+                  />
+                  <button 
+                    type="submit"
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-white py-4 rounded-2xl font-bold transition-all"
+                  >
+                    Login as Admin
+                  </button>
+                </form>
               </div>
             </motion.div>
           </div>

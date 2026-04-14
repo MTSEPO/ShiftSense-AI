@@ -7,6 +7,7 @@ export interface Vehicle {
   model: string;
   year: string;
   price?: string;
+  odometer?: string;
 }
 
 export type UserPersona = 'buyer' | 'trader';
@@ -48,6 +49,7 @@ export async function analyzeVehicles(
     INPUT VALIDATION:
     - If the vehicle data provided is nonsense (e.g., "Asdfasdf") or clearly not a real vehicle, return a polite "Vehicle not found" message and explain why.
     - If the user enters mileage like "138 000KM" with spaces, parse it as 138000.
+    - IMPORTANT: If an odometer reading (KM) is provided, you MUST trigger specific maintenance warnings based on South African service intervals (e.g., "150,000km Timing Belt Warning", "90,000km Major Service Alert").
 
     PRICING AWARENESS (ZAR):
     - Free: 5 requests (Basic SWOT).
@@ -59,39 +61,32 @@ export async function analyzeVehicles(
     Vehicles to analyze: ${JSON.stringify(vehicles)}
     User Context: ${context}
     
-    Please provide a detailed report in Markdown format following this structure:
+    IMPORTANT: You must return a JSON object with the following structure:
+    {
+      "report": "The full markdown report here...",
+      "swot": [
+        {
+          "vehicle": "Vehicle Name",
+          "strengths": ["point 1", "point 2"],
+          "weaknesses": ["point 1", "point 2"],
+          "opportunities": ["point 1", "point 2"],
+          "threats": ["point 1", "point 2"]
+        }
+      ]
+    }
 
+    The "report" field should contain the detailed markdown report following this structure:
     # Side-by-Side Comparison
-    [Table: Engine, Torque, Fuel Economy (L/100km), Safety Rating]
-
-    For EACH vehicle:
+    ...
     ## [Vehicle Name - Year]
-    
     ### 🛠 Mechanical "Lemon" Check
-    [Identify common SA failures (e.g., Ford cooling systems, BMW oil leaks, Toyota injector issues). Bullet points of what to check physically before buying.]
-
+    ...
     ### 🛡 The Security Report (RSA Specific)
-    [RISK: EXTREME/HIGH/MODERATE/LOW]
-    - **Target Level:** Rate 1-10 "Theft Desirability Scale" (e.g., VW Polo, Toyota Hilux, and Ford Ranger are 9/10).
-    - **Methodology Alerts:** 
-        - Relay/Keyless Attacks (for high-end SUVs/Bakkies).
-        - CAN-bus Hacking (specifically warn VW Polo/Venter owners about headlight-access entry).
-        - Remote Jamming (vulnerability at SA shopping malls/petrol stations).
-        - Parts Stripping (targeted for mirrors, lights, tailgates e.g., Polo, Hilux, NP200).
-    - **Insurance & Tracking:** Advise if Level 4 Tracking or Dual-Trackers are typically required. Mention "High-Premium" status for high-theft models.
-    - **Anti-Cloning Warning:** Remind user to verify VIN against Engine Number and check with SAPS clearance.
-
-    ### ⚖️ SWOT Analysis
-    - **Strengths**: ...
-    - **Weaknesses**: ...
-    - **Opportunities**: ...
-    - **Threats**: ...
-
+    ...
     ## 🏁 The ShiftSense Verdict
-    [WINNER: Vehicle Name]
-    [SCORE: X.X]
-    [QUOTE: A short, punchy summary quote]
-    [Detailed recommendation based on the user's context and persona. Use South African localization and terminology.]
+    ...
+
+    Do NOT include the SWOT analysis in the "report" markdown field, as it will be rendered separately using the "swot" JSON data.
     
     Limit all search data to the South African Market. Do not suggest cars or parts only available in the US/UK.
   `;
@@ -102,10 +97,11 @@ export async function analyzeVehicles(
       contents: prompt,
       config: {
         temperature: 0.7,
+        responseMimeType: "application/json"
       }
     });
     
-    return response.text;
+    return JSON.parse(response.text);
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
     throw error;
